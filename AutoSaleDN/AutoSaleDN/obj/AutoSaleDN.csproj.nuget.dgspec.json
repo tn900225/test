@@ -1,20 +1,24 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Ky9\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj": {}
+    "D:\\ki9\\AutoSaleDN-DoAn\\BE\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj": {}
   },
   "projects": {
-    "D:\\Ky9\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj": {
+    "D:\\ki9\\AutoSaleDN-DoAn\\BE\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Ky9\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj",
+        "projectUniqueName": "D:\\ki9\\AutoSaleDN-DoAn\\BE\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj",
         "projectName": "AutoSaleDN",
-        "projectPath": "D:\\Ky9\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj",
-        "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-        "outputPath": "D:\\Ky9\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\obj\\",
+        "projectPath": "D:\\ki9\\AutoSaleDN-DoAn\\BE\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\AutoSaleDN.csproj",
+        "packagesPath": "C:\\Users\\ADMIN\\.nuget\\packages\\",
+        "outputPath": "D:\\ki9\\AutoSaleDN-DoAn\\BE\\AutoSaleDN-BE\\AutoSaleDN\\AutoSaleDN\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ADMIN\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -22,6 +26,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -107,7 +112,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.400\\RuntimeIdentifierGraph.json"
         }
       }
     }
