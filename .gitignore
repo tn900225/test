@@ -1,0 +1,61 @@
+# Build results
+bin/
+obj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# Visual Studio files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider (JetBrains)
+.idea/
+*.sln.iml
+
+# NuGet packages
+*.nupkg
+*.snupkg
+# Nếu muốn bỏ qua thư mục packages tải về
+packages/
+# Giữ lại file packages.config
+!packages/*/packages.config
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Publish
+publish/
+*.PublishSettings
+
+# Resharper / CodeRush
+_ReSharper*/
+*.DotSettings.user
+
+# DotCover
+*.dotCover
+
+# Others
+[Tt]est[Rr]esult*/
+*.cache
+*.config.user
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Secret files (nếu có)
+appsettings.Development.json
