@@ -11,51 +11,39 @@ x86/
 
 # Visual Studio files
 .vs/
-*.suo
 *.user
+*.suo
 *.userosscache
 *.sln.docstates
 
-# Rider (JetBrains)
-.idea/
-*.sln.iml
+# Visual Studio Code
+.vscode/
 
 # NuGet packages
 *.nupkg
 *.snupkg
-# Nếu muốn bỏ qua thư mục packages tải về
-packages/
-# Giữ lại file packages.config
-!packages/*/packages.config
+# Nếu muốn giữ file *.nupkg thì comment dòng trên lại
+# Bỏ qua thư mục packages (trừ file *.config)
+packages/*
+!packages/*.config
 
 # Logs
 *.log
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-
-# Publish
-publish/
-*.PublishSettings
-
-# Resharper / CodeRush
-_ReSharper*/
-*.DotSettings.user
-
-# DotCover
-*.dotCover
-
 # Others
+*.dbmdl
+*.bak
+*.ldf
+*.mdf
+
+# Publish outputs
 [Tt]est[Rr]esult*/
-*.cache
-*.config.user
+[Bb]uild[Ll]og.*
+*.publishsettings
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# JetBrains Rider
+.idea/
+*.iml
 
-# Secret files (nếu có)
-appsettings.Development.json
+# dotenv
+.env
