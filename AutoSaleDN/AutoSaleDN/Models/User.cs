@@ -22,6 +22,8 @@ namespace AutoSaleDN.Models
 
         [Required, StringLength(100)]
         public string Province { get; set; }
+
+        public bool Status { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
@@ -31,5 +33,7 @@ namespace AutoSaleDN.Models
         public ICollection<Report> Reports { get; set; }
         public ICollection<Review> Reviews { get; set; }
         public ICollection<BlogPost> BlogPosts { get; set; }
+
+        public ICollection<CarSale> CarSales { get; set; }
     }
 }
