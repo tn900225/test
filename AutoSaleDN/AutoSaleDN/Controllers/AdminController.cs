@@ -64,12 +64,20 @@ namespace AutoSaleDN.Controllers
             // Get sales transaction history for this customer (as buyer)
             var transactions = await (
                 from sale in _context.CarSales
+
+                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
+                join model in _context.CarModels on listing.ModelId equals model.ModelId
+                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
+                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
+                where listing.UserId == id // The customer is the buyer (listing.UserId) - adjust if your logic is different!
+
                 join storelisting in _context.StoreListings on sale.StoreListingId equals storelisting.StoreListingId
                 join listing in _context.CarListings on storelisting.ListingId equals listing.ListingId
                 join model in _context.CarModels on listing.ModelId equals model.ModelId
                 join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
                 join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
                 where sale.CustomerId == id
+
                 select new
                 {
                     sale.SaleId,
@@ -79,6 +87,16 @@ namespace AutoSaleDN.Controllers
                     Car = new
                     {
                         listing.ListingId,
+
+                        Manufacturer = manu.Name,
+                        Model = model.Name,
+                        listing.Year,
+                        listing.Mileage,
+                        listing.Price,
+                        listing.Location,
+                        listing.Condition,
+                        listing.RentSell
+
                         listing.ModelId,
                         Model = model.Name,
                         Manufacturer = manu.Name,
@@ -110,12 +128,17 @@ namespace AutoSaleDN.Controllers
                             .Where(u => u.UserId == listing.UserId)
                             .Select(u => u.FullName ?? u.Name)
                             .FirstOrDefault()
+
                     },
                     sale.CreatedAt,
                     sale.UpdatedAt
                 }
             ).OrderByDescending(s => s.SaleDate)
              .ToListAsync();
+
+
+            // Optionally, include bookings, payments, ... as needed.
+
 
             return Ok(new
             {
@@ -235,6 +258,11 @@ namespace AutoSaleDN.Controllers
             }
         }
 
+
+        [HttpGet("cars")]
+        public async Task<IActionResult> GetCars()
+        {
+
         // Seller
         [HttpGet("sellers")]
         public async Task<ActionResult<IEnumerable<object>>> GetSellers()
@@ -261,51 +289,7 @@ namespace AutoSaleDN.Controllers
         [HttpPost("sellers")]
         public async Task<ActionResult> CreateSeller([FromBody] SellerDto model)
         {
-            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password) || string.IsNullOrWhiteSpace(model.FullName))
-            {
-                return BadRequest("Email, Full Name, and Password are required for new Seller creation.");
-            }
 
-            if (await _context.Users.AnyAsync(x => x.Email == model.Email || x.Name == model.Email))
-            {
-                return BadRequest("Email or Username already exists.");
-            }
-
-            var customer = new User
-            {
-                Name = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                Mobile = model.Mobile,
-                Province = model.Province,
-                Role = "Seller",
-                Password = BCrypt.Net.BCrypt.HashPassword(model.Password),
-                StoreLocationId = model.storeLocationId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            _context.Users.Add(customer);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Customer created successfully" });
-        }
-
-        [HttpPut("sellers/{id}")]
-        public async Task<ActionResult> UpdateSellers(int id, [FromBody] SellerDto model)
-        {
-            var seller = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Seller");
-            //var showroom = await _context.S.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Seller");
-
-            if (seller == null)
-            {
-                return NotFound($"Seller with ID {id} not found.");
-            }
-
-            if (!string.IsNullOrEmpty(model.Email) && model.Email != seller.Email)
-            {
-                if (await _context.Users.AnyAsync(x => x.Email == model.Email))
-                {
-                    return BadRequest("Email already exists for another user.");
                 }
             }
 
@@ -694,6 +678,65 @@ namespace AutoSaleDN.Controllers
             return Ok(new { message = "Car deleted successfully" });
         }
 
+        [HttpGet("transactions/{id}")]
+        public async Task<ActionResult<object>> GetTransactionDetail(int id)
+        {
+            var transaction = await (
+                from sale in _context.CarSales
+                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
+                join model in _context.CarModels on listing.ModelId equals model.ModelId
+                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
+                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
+                join customer in _context.Users on listing.UserId equals customer.UserId
+                from spec in _context.CarSpecifications.Where(x => x.ListingId == listing.ListingId).DefaultIfEmpty()
+                where sale.SaleId == id
+                select new
+                {
+                    sale.SaleId,
+                    sale.SaleDate,
+                    sale.FinalPrice,
+                    SaleStatus = status.StatusName,
+                    CreatedAt = sale.CreatedAt,
+                    UpdatedAt = sale.UpdatedAt,
+                    Customer = new
+                    {
+                        customer.UserId,
+                        customer.FullName,
+                        customer.Email,
+                        customer.Mobile,
+                        customer.Role
+                    },
+                    Car = new
+                    {
+                        listing.ListingId,
+                        Manufacturer = manu.Name,
+                        Model = model.Name,
+                        listing.Year,
+                        listing.Mileage,
+                        listing.Price,
+                        listing.Location,
+                        listing.Condition,
+                        listing.RentSell,
+                        Vin = listing.Vin,
+                        Description = listing.Description,
+                        Certified = listing.Certified,
+                        Color = spec.ExteriorColor,
+                        Transmission = spec.Transmission,
+                        Images = _context.CarImages
+                            .Where(img => img.ListingId == listing.ListingId)
+                            .Select(img => img.Url)
+                            .ToList()
+                    }
+                }
+            ).FirstOrDefaultAsync();
+
+            if (transaction == null)
+                return NotFound();
+
+            return Ok(transaction);
+        }
+
+
         [HttpGet("cars/add-form-data")]
         public async Task<IActionResult> GetAddCarFormData()
         {
@@ -702,8 +745,12 @@ namespace AutoSaleDN.Controllers
             var features = await _context.CarFeatures.ToListAsync();
             return Ok(new
             {
+
+                models = models.Select(m => new {
+
                 models = models.Select(m => new
                 {
+
                     m.ModelId,
                     m.Name,
                     ManufacturerName = m.Manufacturer.Name
@@ -715,88 +762,7 @@ namespace AutoSaleDN.Controllers
 
         // Showroom Allocations (CarInventory)
 
-        [HttpGet("cars/{id}/allocations")]
-        public async Task<ActionResult<IEnumerable<CarInventoryDto>>> GetCarAllocations(int id)
-        {
-            // Get allocations by querying StoreListings for a given car (ListingId)
-            var allocations = await _context.StoreListings
-                .Where(sl => sl.ListingId == id)
-                .Include(sl => sl.StoreLocation)
-                .Select(sl => new CarInventoryDto
-                {
-                    InventoryId = sl.StoreListingId,
-                    ListingId = sl.ListingId,
-                    ShowroomId = sl.StoreLocationId,
-                    ShowroomName = sl.StoreLocation.Name,
-                    Quantity = sl.CurrentQuantity
-                })
-                .ToListAsync();
 
-            return Ok(allocations);
-        }
-
-
-        [HttpPost("allocations")]
-        public async Task<IActionResult> AddOrUpdateAllocation([FromBody] CarInventoryDto allocationDto)
-        {
-            if (allocationDto.ListingId <= 0 || allocationDto.ShowroomId <= 0 || allocationDto.Quantity < 0)
-            {
-                return BadRequest(new { message = "Invalid allocation data provided." });
-            }
-            var storelisting = new StoreListing
-            {
-                StoreLocationId = allocationDto.ShowroomId,
-                ListingId = allocationDto.ListingId,
-                InitialQuantity = allocationDto.Quantity,
-                AddedDate = DateTime.UtcNow,
-                Status = "IN_STOCK"
-            };
-            _context.StoreListings.Add(storelisting);
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Allocation saved successfully." });
-        }
-
-        [HttpDelete("allocations/{storeListingId}")]
-        public async Task<IActionResult> DeleteAllocation(int storeListingId)
-        {
-            var storeListing = await _context.StoreListings.FindAsync(storeListingId);
-            if (storeListing == null)
-            {
-                return NotFound(new { message = "Showroom allocation not found." });
-            }
-
-            // Optional: You might want to check if there are associated sales before deleting.
-            // For now, we will proceed with deletion.
-
-            // Removing the StoreListing will also remove associated CarInventory records if Cascade Delete is set up in the database.
-            _context.StoreListings.Remove(storeListing);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Allocation deleted successfully." });
-        }
-
-        public class CarDto
-        {
-            public int ListingId { get; set; }
-            public string ModelName { get; set; }
-            public string Manufacturer { get; set; }
-            public int Year { get; set; }
-            public double Price { get; set; }
-            public string Status { get; set; }
-            public string ImageUrl { get; set; }
-            public List<CarInventoryDto> Showrooms { get; set; }
-        }
-
-        public class CarInventoryDto
-        {
-            public int? InventoryId { get; set; }
-            public int ListingId { get; set; }
-            public int ShowroomId { get; set; }
-            public string? ShowroomName { get; set; }
-            public int Quantity { get; set; }
-        }
 
         public class AddCarDto
         {
@@ -824,6 +790,7 @@ namespace AutoSaleDN.Controllers
             public DateTime ImportDate { get; set; }
             public decimal ImportPrice { get; set; }
             public List<string> ImageUrls { get; set; }
+
 
             public List<string> VideoUrls { get; set; }
             public List<int> FeatureIds { get; set; }
@@ -1832,75 +1799,5 @@ namespace AutoSaleDN.Controllers
             public int StatusId { get; set; }
         }
 
-        // DTO for a single item in the bulk import
-        public class StockImportItemDto
-        {
-            public int ListingId { get; set; }
-            public int Quantity { get; set; }
-        }
 
-        // DTO for the bulk import request
-        public class BulkStockImportDto
-        {
-            public List<StockImportItemDto> Items { get; set; }
-        }
-
-        [HttpPost("showrooms/{showroomId}/inventory/import")]
-        public async Task<IActionResult> BulkImportStock(int showroomId, [FromBody] BulkStockImportDto bulkImportDto)
-        {
-            if (bulkImportDto == null || bulkImportDto.Items == null || !bulkImportDto.Items.Any())
-            {
-                return BadRequest(new { message = "Invalid stock import data. The list of items cannot be empty." });
-            }
-
-            using (var transaction = await _context.Database.BeginTransactionAsync())
-            {
-                try
-                {
-                    foreach (var item in bulkImportDto.Items)
-                    {
-                        if (item.Quantity <= 0 || item.ListingId <= 0)
-                        {
-                            await transaction.RollbackAsync();
-                            return BadRequest(new { message = $"Invalid data for ListingId {item.ListingId}. Quantity must be positive." });
-                        }
-
-                        var storeListing = await _context.StoreListings
-                            .FirstOrDefaultAsync(sl => sl.StoreLocationId == showroomId && sl.ListingId == item.ListingId);
-
-                        if (storeListing == null)
-                        {
-                            await transaction.RollbackAsync();
-                            return NotFound(new { message = $"Car with ListingId {item.ListingId} is not allocated to this showroom." });
-                        }
-
-                        // Create a new inventory record for each import
-                        var inventoryLog = new CarInventory
-                        {
-                            StoreListingId = storeListing.StoreListingId,
-                            TransactionType = 1, // 5 for 'Stock Import'
-                            Quantity = item.Quantity,
-                            UnitPrice = 0, // Set appropriate price if needed
-                            ReferenceId = "INIT-002", // Set appropriate reference ID if needed
-                            Notes = $"Nhập mới {item.Quantity} đơn vị vào kho.",
-                            CreatedBy = User.Identity?.Name ?? "Admin",
-                            TransactionDate = DateTime.UtcNow,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _context.CarInventories.Add(inventoryLog);
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return Ok(new { message = "Nhập kho thành công." });
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return StatusCode(500, new { message = "Có lỗi xảy ra trong quá trình nhập kho.", error = ex.Message });
-                }
-            }
-        }
-    }
 }

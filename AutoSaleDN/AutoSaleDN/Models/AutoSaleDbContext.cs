@@ -30,6 +30,8 @@ namespace AutoSaleDN.Models
 
         public DbSet<CarInventory> CarInventories { get; set; }
         public DbSet<CarColor> CarColors { get; set; }
+
+
         public DbSet<Promotion> Promotions { get; set; }
         public DbSet<StoreLocation> StoreLocations { get; set; }
         public DbSet<DeliveryAddress> DeliveryAddresses { get; set; }
@@ -37,6 +39,7 @@ namespace AutoSaleDN.Models
         public DbSet<CarVideo> CarVideos { get; set; }
 
         public DbSet<StoreListing> StoreListings { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
