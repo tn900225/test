@@ -4,6 +4,7 @@ using AutoSaleDN.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoSaleDN.Migrations
 {
     [DbContext(typeof(AutoSaleDbContext))]
-    partial class AutoSaleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250712075831_UpdateStoreListingCarSales")]
+    partial class UpdateStoreListingCarSales
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -248,20 +251,6 @@ namespace AutoSaleDN.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryId"));
 
-
-                    b.Property<int?>("ColorId")
-                        .IsRequired()
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ImportDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("ImportPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ModelId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -269,26 +258,9 @@ namespace AutoSaleDN.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-
-                    b.Property<int>("QuantityAvailable")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuantityImported")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuantitySold")
-                        .HasColumnType("int");
-
-                    b.HasKey("InventoryId");
-
-                    b.HasIndex("ColorId");
-
-                    b.HasIndex("ModelId");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -312,7 +284,6 @@ namespace AutoSaleDN.Migrations
                     b.HasKey("InventoryId");
 
                     b.HasIndex("StoreListingId", "TransactionDate");
-
 
                     b.ToTable("CarInventories");
                 });
@@ -464,9 +435,6 @@ namespace AutoSaleDN.Migrations
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CarListingListingId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -475,6 +443,9 @@ namespace AutoSaleDN.Migrations
 
                     b.Property<decimal>("FinalPrice")
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("ListingId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("SaleDate")
                         .HasColumnType("datetime2");
@@ -492,9 +463,7 @@ namespace AutoSaleDN.Migrations
 
                     b.HasIndex("BookingId");
 
-                    b.HasIndex("CarListingListingId");
-
-                    b.HasIndex("CustomerId");
+                    b.HasIndex("ListingId");
 
                     b.HasIndex("SaleStatusId");
 
@@ -1030,9 +999,6 @@ namespace AutoSaleDN.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<bool>("Status")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -1117,23 +1083,6 @@ namespace AutoSaleDN.Migrations
 
             modelBuilder.Entity("AutoSaleDN.Models.CarInventory", b =>
                 {
-
-                    b.HasOne("AutoSaleDN.Models.CarColor", "Color")
-                        .WithMany()
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AutoSaleDN.Models.CarModel", "Model")
-                        .WithMany()
-                        .HasForeignKey("ModelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Color");
-
-                    b.Navigation("Model");
-
                     b.HasOne("AutoSaleDN.Models.StoreListing", "StoreListing")
                         .WithMany("Inventories")
                         .HasForeignKey("StoreListingId")
@@ -1141,7 +1090,6 @@ namespace AutoSaleDN.Migrations
                         .IsRequired();
 
                     b.Navigation("StoreListing");
-
                 });
 
             modelBuilder.Entity("AutoSaleDN.Models.CarListing", b =>
@@ -1210,13 +1158,9 @@ namespace AutoSaleDN.Migrations
                         .WithMany("CarSales")
                         .HasForeignKey("BookingId");
 
-                    b.HasOne("AutoSaleDN.Models.CarListing", null)
+                    b.HasOne("AutoSaleDN.Models.CarListing", "Listing")
                         .WithMany("CarSales")
-                        .HasForeignKey("CarListingListingId");
-
-                    b.HasOne("AutoSaleDN.Models.User", "Customer")
-                        .WithMany("CarSales")
-                        .HasForeignKey("CustomerId")
+                        .HasForeignKey("ListingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1232,7 +1176,7 @@ namespace AutoSaleDN.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Customer");
+                    b.Navigation("Listing");
 
                     b.Navigation("SaleStatus");
 
@@ -1459,8 +1403,6 @@ namespace AutoSaleDN.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("CarListings");
-
-                    b.Navigation("CarSales");
 
                     b.Navigation("Payments");
 
