@@ -4,6 +4,7 @@ using AutoSaleDN.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoSaleDN.Migrations
 {
     [DbContext(typeof(AutoSaleDbContext))]
-    partial class AutoSaleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250721144217_FixTaxRateCorrectly")]
+    partial class FixTaxRateCorrectly
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -155,13 +158,13 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("PaidPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("PaymentStatus")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("TotalPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("TransactionId")
                         .HasColumnType("nvarchar(max)");
@@ -254,20 +257,6 @@ namespace AutoSaleDN.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryId"));
 
-
-                    b.Property<int?>("ColorId")
-                        .IsRequired()
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ImportDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("ImportPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ModelId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -275,26 +264,9 @@ namespace AutoSaleDN.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-
-                    b.Property<int>("QuantityAvailable")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuantityImported")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuantitySold")
-                        .HasColumnType("int");
-
-                    b.HasKey("InventoryId");
-
-                    b.HasIndex("ColorId");
-
-                    b.HasIndex("ModelId");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -318,7 +290,6 @@ namespace AutoSaleDN.Migrations
                     b.HasKey("InventoryId");
 
                     b.HasIndex("StoreListingId", "TransactionDate");
-
 
                     b.ToTable("CarInventories");
                 });
@@ -353,7 +324,7 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal?>("Price")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("RentSell")
                         .HasColumnType("nvarchar(max)");
@@ -451,10 +422,10 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("RegistrationFee")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal>("TaxRate")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(5,4)");
 
                     b.HasKey("PricingDetailId");
 
@@ -484,7 +455,7 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("FinalPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<DateTime?>("SaleDate")
                         .HasColumnType("datetime2");
@@ -587,9 +558,6 @@ namespace AutoSaleDN.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VideoId"));
 
-                    b.Property<int?>("CarListingListingId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -601,8 +569,6 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("VideoId");
-
-                    b.HasIndex("CarListingListingId");
 
                     b.HasIndex("ListingId");
 
@@ -652,7 +618,7 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<int>("BookingId")
                         .HasColumnType("int");
@@ -774,7 +740,7 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal?>("AverageListingPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal?>("AverageRating")
                         .HasColumnType("decimal(3,2)");
@@ -838,13 +804,13 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal?>("TotalBookingValue")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<int?>("TotalBookings")
                         .HasColumnType("int");
 
                     b.Property<decimal?>("TotalListingValue")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<int?>("TotalListings")
                         .HasColumnType("int");
@@ -853,7 +819,7 @@ namespace AutoSaleDN.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal?>("TotalRevenue")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<int?>("TotalReviews")
                         .HasColumnType("int");
@@ -1145,34 +1111,17 @@ namespace AutoSaleDN.Migrations
 
             modelBuilder.Entity("AutoSaleDN.Models.CarImage", b =>
                 {
-                    b.HasOne("AutoSaleDN.Models.CarListing", "CarListing")
+                    b.HasOne("AutoSaleDN.Models.CarListing", "Listing")
                         .WithMany("CarImages")
                         .HasForeignKey("ListingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("CarListing");
+                    b.Navigation("Listing");
                 });
 
             modelBuilder.Entity("AutoSaleDN.Models.CarInventory", b =>
                 {
-
-                    b.HasOne("AutoSaleDN.Models.CarColor", "Color")
-                        .WithMany()
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AutoSaleDN.Models.CarModel", "Model")
-                        .WithMany()
-                        .HasForeignKey("ModelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Color");
-
-                    b.Navigation("Model");
-
                     b.HasOne("AutoSaleDN.Models.StoreListing", "StoreListing")
                         .WithMany("Inventories")
                         .HasForeignKey("StoreListingId")
@@ -1180,7 +1129,6 @@ namespace AutoSaleDN.Migrations
                         .IsRequired();
 
                     b.Navigation("StoreListing");
-
                 });
 
             modelBuilder.Entity("AutoSaleDN.Models.CarListing", b =>
@@ -1302,10 +1250,6 @@ namespace AutoSaleDN.Migrations
 
             modelBuilder.Entity("AutoSaleDN.Models.CarVideo", b =>
                 {
-                    b.HasOne("AutoSaleDN.Models.CarListing", null)
-                        .WithMany("CarVideos")
-                        .HasForeignKey("CarListingListingId");
-
                     b.HasOne("AutoSaleDN.Models.CarListing", "CarListing")
                         .WithMany()
                         .HasForeignKey("ListingId")
@@ -1463,8 +1407,6 @@ namespace AutoSaleDN.Migrations
                     b.Navigation("CarSales");
 
                     b.Navigation("CarServiceHistories");
-
-                    b.Navigation("CarVideos");
 
                     b.Navigation("Payments");
 
