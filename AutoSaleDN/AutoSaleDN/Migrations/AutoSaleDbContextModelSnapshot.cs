@@ -248,6 +248,20 @@ namespace AutoSaleDN.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InventoryId"));
 
+
+                    b.Property<int?>("ColorId")
+                        .IsRequired()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ImportDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("ImportPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ModelId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -255,9 +269,26 @@ namespace AutoSaleDN.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+
+                    b.Property<int>("QuantityAvailable")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuantityImported")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuantitySold")
+                        .HasColumnType("int");
+
+                    b.HasKey("InventoryId");
+
+                    b.HasIndex("ColorId");
+
+                    b.HasIndex("ModelId");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -281,6 +312,7 @@ namespace AutoSaleDN.Migrations
                     b.HasKey("InventoryId");
 
                     b.HasIndex("StoreListingId", "TransactionDate");
+
 
                     b.ToTable("CarInventories");
                 });
@@ -1085,6 +1117,23 @@ namespace AutoSaleDN.Migrations
 
             modelBuilder.Entity("AutoSaleDN.Models.CarInventory", b =>
                 {
+
+                    b.HasOne("AutoSaleDN.Models.CarColor", "Color")
+                        .WithMany()
+                        .HasForeignKey("ColorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AutoSaleDN.Models.CarModel", "Model")
+                        .WithMany()
+                        .HasForeignKey("ModelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Color");
+
+                    b.Navigation("Model");
+
                     b.HasOne("AutoSaleDN.Models.StoreListing", "StoreListing")
                         .WithMany("Inventories")
                         .HasForeignKey("StoreListingId")
@@ -1092,6 +1141,7 @@ namespace AutoSaleDN.Migrations
                         .IsRequired();
 
                     b.Navigation("StoreListing");
+
                 });
 
             modelBuilder.Entity("AutoSaleDN.Models.CarListing", b =>

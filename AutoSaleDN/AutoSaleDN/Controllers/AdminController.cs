@@ -64,12 +64,20 @@ namespace AutoSaleDN.Controllers
             // Get sales transaction history for this customer (as buyer)
             var transactions = await (
                 from sale in _context.CarSales
+
+                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
+                join model in _context.CarModels on listing.ModelId equals model.ModelId
+                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
+                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
+                where listing.UserId == id // The customer is the buyer (listing.UserId) - adjust if your logic is different!
+
                 join storelisting in _context.StoreListings on sale.StoreListingId equals storelisting.StoreListingId
                 join listing in _context.CarListings on storelisting.ListingId equals listing.ListingId
                 join model in _context.CarModels on listing.ModelId equals model.ModelId
                 join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
                 join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
                 where sale.CustomerId == id
+
                 select new
                 {
                     sale.SaleId,
@@ -79,6 +87,16 @@ namespace AutoSaleDN.Controllers
                     Car = new
                     {
                         listing.ListingId,
+
+                        Manufacturer = manu.Name,
+                        Model = model.Name,
+                        listing.Year,
+                        listing.Mileage,
+                        listing.Price,
+                        listing.Location,
+                        listing.Condition,
+                        listing.RentSell
+
                         listing.ModelId,
                         Model = model.Name,
                         Manufacturer = manu.Name,
@@ -110,12 +128,17 @@ namespace AutoSaleDN.Controllers
                             .Where(u => u.UserId == listing.UserId)
                             .Select(u => u.FullName ?? u.Name)
                             .FirstOrDefault()
+
                     },
                     sale.CreatedAt,
                     sale.UpdatedAt
                 }
             ).OrderByDescending(s => s.SaleDate)
              .ToListAsync();
+
+
+            // Optionally, include bookings, payments, ... as needed.
+
 
             return Ok(new
             {
@@ -235,6 +258,11 @@ namespace AutoSaleDN.Controllers
             }
         }
 
+
+        [HttpGet("cars")]
+        public async Task<IActionResult> GetCars()
+        {
+
         // Seller
         [HttpGet("sellers")]
         public async Task<ActionResult<IEnumerable<object>>> GetSellers()
@@ -259,6 +287,7 @@ namespace AutoSaleDN.Controllers
         [HttpGet("cars")]
         public async Task<IActionResult> GetCars()
         {
+
             var cars = await (
                 from listing in _context.CarListings
                 join model in _context.CarModels on listing.ModelId equals model.ModelId
@@ -271,16 +300,29 @@ namespace AutoSaleDN.Controllers
                     listing.ModelId,
                     Model = model.Name,
                     Manufacturer = manu.Name,
+
+                    Color = spec.ExteriorColor ?? "Unknown",
+
                     Color = spec != null ? spec.ExteriorColor : "Unknown",
+
                     listing.UserId,
                     listing.Year,
                     listing.Mileage,
                     listing.Price,
+
+                    listing.Location,
+                    listing.Condition,
+                    listing.RentSell,
+                    listing.Vin,
+                    Transmission = spec.Transmission ?? "Automatic",
+                    SeatingCapacity = spec.SeatingCapacity ?? 5,
+
                     listing.Condition,
                     listing.RentSell,
                     listing.Vin,
                     Transmission = spec != null ? spec.Transmission : "Automatic",
                     SeatingCapacity = spec != null ? spec.SeatingCapacity : 5,
+
                     Certified = listing.Certified,
                     Images = _context.CarImages.Where(img => img.ListingId == listing.ListingId).Select(img => img.Url).ToList(),
                     Available_Units = available_units
@@ -418,6 +460,65 @@ namespace AutoSaleDN.Controllers
             return Ok(new { message = "Car deleted successfully" });
         }
 
+        [HttpGet("transactions/{id}")]
+        public async Task<ActionResult<object>> GetTransactionDetail(int id)
+        {
+            var transaction = await (
+                from sale in _context.CarSales
+                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
+                join model in _context.CarModels on listing.ModelId equals model.ModelId
+                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
+                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
+                join customer in _context.Users on listing.UserId equals customer.UserId
+                from spec in _context.CarSpecifications.Where(x => x.ListingId == listing.ListingId).DefaultIfEmpty()
+                where sale.SaleId == id
+                select new
+                {
+                    sale.SaleId,
+                    sale.SaleDate,
+                    sale.FinalPrice,
+                    SaleStatus = status.StatusName,
+                    CreatedAt = sale.CreatedAt,
+                    UpdatedAt = sale.UpdatedAt,
+                    Customer = new
+                    {
+                        customer.UserId,
+                        customer.FullName,
+                        customer.Email,
+                        customer.Mobile,
+                        customer.Role
+                    },
+                    Car = new
+                    {
+                        listing.ListingId,
+                        Manufacturer = manu.Name,
+                        Model = model.Name,
+                        listing.Year,
+                        listing.Mileage,
+                        listing.Price,
+                        listing.Location,
+                        listing.Condition,
+                        listing.RentSell,
+                        Vin = listing.Vin,
+                        Description = listing.Description,
+                        Certified = listing.Certified,
+                        Color = spec.ExteriorColor,
+                        Transmission = spec.Transmission,
+                        Images = _context.CarImages
+                            .Where(img => img.ListingId == listing.ListingId)
+                            .Select(img => img.Url)
+                            .ToList()
+                    }
+                }
+            ).FirstOrDefaultAsync();
+
+            if (transaction == null)
+                return NotFound();
+
+            return Ok(transaction);
+        }
+
+
         [HttpGet("cars/add-form-data")]
         public async Task<IActionResult> GetAddCarFormData()
         {
@@ -426,8 +527,12 @@ namespace AutoSaleDN.Controllers
             var features = await _context.CarFeatures.ToListAsync();
             return Ok(new
             {
+
+                models = models.Select(m => new {
+
                 models = models.Select(m => new
                 {
+
                     m.ModelId,
                     m.Name,
                     ManufacturerName = m.Manufacturer.Name
@@ -436,6 +541,94 @@ namespace AutoSaleDN.Controllers
                 features
             });
         }
+
+
+        [HttpPost("cars/add")]
+        public async Task<IActionResult> AddNewCar([FromBody] AddCarDto dto)
+        {
+            // 1. Tạo CarListing
+            var car = new CarListing
+            {
+                ModelId = dto.ModelId,
+                UserId = dto.UserId,
+                Year = dto.Year,
+                Mileage = dto.Mileage,
+                Price = dto.Price,
+                Location = dto.Location,
+                Condition = dto.Condition,
+                RentSell = dto.RentSell,
+                Description = dto.Description,
+                Certified = dto.Certified,
+                Vin = dto.Vin,
+                DatePosted = DateTime.Now,
+                DateUpdated = DateTime.Now,
+                ListingStatus = "Available"
+            };
+            _context.CarListings.Add(car);
+            await _context.SaveChangesAsync();
+
+            // 2. CarSpecification
+            var spec = new CarSpecification
+            {
+                ListingId = car.ListingId,
+                ExteriorColor = dto.Color,
+                InteriorColor = dto.InteriorColor,
+                Transmission = dto.Transmission,
+                Engine = dto.Engine,
+                FuelType = dto.FuelType,
+                CarType = dto.CarType,
+                SeatingCapacity = dto.SeatingCapacity
+            };
+            _context.CarSpecifications.Add(spec);
+
+            // 3. CarPricingDetail
+            var pricing = new CarPricingDetail
+            {
+                ListingId = car.ListingId,
+                RegistrationFee = dto.RegistrationFee,
+                TaxRate = dto.TaxRate
+            };
+            _context.CarPricingDetails.Add(pricing);
+
+            // 4. CarInventory
+            var inventory = new CarInventory
+            {
+                ModelId = dto.ModelId,
+                ColorId = dto.ColorId,
+                QuantityImported = dto.QuantityImported,
+                QuantityAvailable = dto.QuantityImported,
+                QuantitySold = 0,
+                ImportDate = dto.ImportDate,
+                ImportPrice = dto.ImportPrice,
+                Notes = dto.Notes
+            };
+            _context.CarInventories.Add(inventory);
+
+            // 5. CarImages
+            foreach (var url in dto.ImageUrls)
+            {
+                _context.CarImages.Add(new CarImage
+                {
+                    ListingId = car.ListingId,
+                    Url = url
+                });
+            }
+
+            // 6. CarListingFeature
+            foreach (var fid in dto.FeatureIds)
+            {
+                _context.CarListingFeatures.Add(new CarListingFeature
+                {
+                    ListingId = car.ListingId,
+                    FeatureId = fid
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Car added successfully" });
+        }
+
 
 
 
@@ -469,6 +662,9 @@ namespace AutoSaleDN.Controllers
             public List<string> ImageUrls { get; set; }
             public List<int> FeatureIds { get; set; }
         }
+
+    }
+
 
         // 1. Quản lý nhân viên (Seller)
         [HttpGet("employees")]
@@ -1567,5 +1763,6 @@ namespace AutoSaleDN.Controllers
             public int StatusId { get; set; }
         }
     } 
+
 
 }
