@@ -65,20 +65,12 @@ namespace AutoSaleDN.Controllers
             // Get sales transaction history for this customer (as buyer)
             var transactions = await (
                 from sale in _context.CarSales
-
-                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
-                join model in _context.CarModels on listing.ModelId equals model.ModelId
-                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
-                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
-                where listing.UserId == id // The customer is the buyer (listing.UserId) - adjust if your logic is different!
-
                 join storelisting in _context.StoreListings on sale.StoreListingId equals storelisting.StoreListingId
                 join listing in _context.CarListings on storelisting.ListingId equals listing.ListingId
                 join model in _context.CarModels on listing.ModelId equals model.ModelId
                 join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
                 join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
                 where sale.CustomerId == id
-
                 select new
                 {
                     sale.SaleId,
@@ -88,16 +80,6 @@ namespace AutoSaleDN.Controllers
                     Car = new
                     {
                         listing.ListingId,
-
-                        Manufacturer = manu.Name,
-                        Model = model.Name,
-                        listing.Year,
-                        listing.Mileage,
-                        listing.Price,
-                        listing.Location,
-                        listing.Condition,
-                        listing.RentSell
-
                         listing.ModelId,
                         Model = model.Name,
                         Manufacturer = manu.Name,
@@ -105,7 +87,7 @@ namespace AutoSaleDN.Controllers
                         listing.Mileage,
                         listing.Price,
                         listing.Condition,
-                        listing.RentSell,
+                        listing.Status,
                         listing.Vin,
                         Transmission = listing.Specifications != null && listing.Specifications.Any()
                             ? listing.Specifications.First().Transmission
@@ -129,17 +111,12 @@ namespace AutoSaleDN.Controllers
                             .Where(u => u.UserId == listing.UserId)
                             .Select(u => u.FullName ?? u.Name)
                             .FirstOrDefault()
-
                     },
                     sale.CreatedAt,
                     sale.UpdatedAt
                 }
             ).OrderByDescending(s => s.SaleDate)
              .ToListAsync();
-
-
-            // Optionally, include bookings, payments, ... as needed.
-
 
             return Ok(new
             {
@@ -259,11 +236,6 @@ namespace AutoSaleDN.Controllers
             }
         }
 
-
-        [HttpGet("cars")]
-        public async Task<IActionResult> GetCars()
-        {
-
         // Seller
         [HttpGet("sellers")]
         public async Task<ActionResult<IEnumerable<object>>> GetSellers()
@@ -290,7 +262,51 @@ namespace AutoSaleDN.Controllers
         [HttpPost("sellers")]
         public async Task<ActionResult> CreateSeller([FromBody] SellerDto model)
         {
+            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password) || string.IsNullOrWhiteSpace(model.FullName))
+            {
+                return BadRequest("Email, Full Name, and Password are required for new Seller creation.");
+            }
 
+            if (await _context.Users.AnyAsync(x => x.Email == model.Email || x.Name == model.Email))
+            {
+                return BadRequest("Email or Username already exists.");
+            }
+
+            var customer = new User
+            {
+                Name = model.Email,
+                Email = model.Email,
+                FullName = model.FullName,
+                Mobile = model.Mobile,
+                Province = model.Province,
+                Role = "Seller",
+                Password = BCrypt.Net.BCrypt.HashPassword(model.Password),
+                StoreLocationId = model.storeLocationId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Users.Add(customer);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Customer created successfully" });
+        }
+
+        [HttpPut("sellers/{id}")]
+        public async Task<ActionResult> UpdateSellers(int id, [FromBody] SellerDto model)
+        {
+            var seller = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Seller");
+            //var showroom = await _context.S.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Seller");
+
+            if (seller == null)
+            {
+                return NotFound($"Seller with ID {id} not found.");
+            }
+
+            if (!string.IsNullOrEmpty(model.Email) && model.Email != seller.Email)
+            {
+                if (await _context.Users.AnyAsync(x => x.Email == model.Email))
+                {
+                    return BadRequest("Email already exists for another user.");
                 }
             }
 
@@ -356,7 +372,7 @@ namespace AutoSaleDN.Controllers
         {
             var query = _context.CarListings
                 .Include(c => c.Model)
-                    .ThenInclude(m => m.Manufacturer)
+                    .ThenInclude(m => m.CarManufacturer)
                 .Include(c => c.CarImages)
                 .Include(c => c.CarVideos)
                 .Include(c => c.Specifications)
@@ -371,7 +387,7 @@ namespace AutoSaleDN.Controllers
             {
                 query = query.Where(c =>
                     c.Model.Name.Contains(search) ||
-                    c.Model.Manufacturer.Name.Contains(search) ||
+                    c.Model.CarManufacturer.Name.Contains(search) ||
                     (c.Specifications.Any() && c.Specifications.FirstOrDefault().ExteriorColor.Contains(search)) ||
                     c.Vin.Contains(search)
                 );
@@ -389,7 +405,7 @@ namespace AutoSaleDN.Controllers
                     Mileage = (double)(c.Mileage ?? 0),
                     Price = (double)(c.Price ?? 0),
                     Condition = c.Condition,
-                    RentSell = c.RentSell,
+                    RentSell = c.Status,
                     Description = c.Description,
                     Certified = c.Certified,
                     Vin = c.Vin,
@@ -397,7 +413,7 @@ namespace AutoSaleDN.Controllers
                     DateUpdated = c.DateUpdated,
 
                     ModelName = c.Model.Name,
-                    Manufacturer = c.Model.Manufacturer.Name,
+                    Manufacturer = c.Model.CarManufacturer.Name,
 
                     // CarSpecification details (accessing FirstOrDefault from ICollection)
                     Color = c.Specifications.Any() ? c.Specifications.FirstOrDefault().ExteriorColor : null,
@@ -463,7 +479,7 @@ namespace AutoSaleDN.Controllers
             var car = await _context.CarListings
                 .Where(c => c.ListingId == id)
                 .Include(c => c.Model)
-                    .ThenInclude(m => m.Manufacturer)
+                    .ThenInclude(m => m.CarManufacturer)
                 .Include(c => c.Specifications)
                 .Include(c => c.CarPricingDetails)
                 .Include(c => c.CarImages)
@@ -481,7 +497,7 @@ namespace AutoSaleDN.Controllers
                     Mileage = (double)(c.Mileage ?? 0),
                     Price = (double)(c.Price ?? 0),
                     Condition = c.Condition,
-                    RentSell = c.RentSell,
+                    RentSell = c.Status,
                     Description = c.Description,
                     Certified = c.Certified,
                     Vin = c.Vin,
@@ -489,7 +505,7 @@ namespace AutoSaleDN.Controllers
                     DateUpdated = c.DateUpdated,
 
                     ModelName = c.Model.Name,
-                    Manufacturer = c.Model.Manufacturer.Name,
+                    Manufacturer = c.Model.CarManufacturer.Name,
 
                     // CarSpecification details (accessing FirstOrDefault from ICollection)
                     Color = c.Specifications.Any() ? c.Specifications.FirstOrDefault().ExteriorColor : null,
@@ -539,14 +555,51 @@ namespace AutoSaleDN.Controllers
             return Ok(car);
         }
 
-
         [HttpPost("cars/add")]
         public async Task<IActionResult> AddNewCar([FromBody] AddCarDto dto)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Create CarListing
+                // 1. Kiểm tra tính hợp lệ của StoreLocationId trước
+                var storeLocationExists = await _context.StoreLocations.AnyAsync(s => s.StoreLocationId == dto.StoreLocationId);
+                if (!storeLocationExists)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Invalid StoreLocationId provided. Store location does not exist."
+                    });
+                }
+
+                // 2. Kiểm tra xem đã có một xe cùng ModelId đang là IsCurrent tại StoreLocation này chưa
+                var existingCurrentStoreListing = await _context.StoreListings
+                    .Where(sl => sl.StoreLocationId == dto.StoreLocationId && sl.IsCurrent == true)
+                    .Join(_context.CarListings,
+                          sl => sl.ListingId,
+                          cl => cl.ListingId,
+                          (sl, cl) => new { sl, cl })
+                    .FirstOrDefaultAsync(joined => joined.cl.ModelId == dto.ModelId);
+
+                if (existingCurrentStoreListing != null)
+                {
+                    var modelName = await _context.CarModels // Sử dụng DbSet CarModels của bạn
+                                              .Where(m => m.ModelId == dto.ModelId)
+                                              .Select(m => m.Name)
+                                              .FirstOrDefaultAsync();
+
+                    var displayModel = string.IsNullOrEmpty(modelName) ? $"ID {dto.ModelId}" : modelName;
+
+                    await transaction.RollbackAsync();
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"A car of model '{displayModel}' is already listed as current at store location ID {dto.StoreLocationId}. Only one listing of the same model can be current per showroom."
+                    });
+                }
+
+                // 3. Tạo CarListing
                 var car = new CarListing
                 {
                     ModelId = dto.ModelId,
@@ -555,7 +608,7 @@ namespace AutoSaleDN.Controllers
                     Mileage = dto.Mileage,
                     Price = dto.Price,
                     Condition = dto.Condition,
-                    RentSell = dto.RentSell,
+                    Status = "available",
                     Description = dto.Description,
                     Certified = dto.Certified,
                     Vin = dto.Vin,
@@ -563,12 +616,16 @@ namespace AutoSaleDN.Controllers
                     DateUpdated = DateTime.Now
                 };
                 _context.CarListings.Add(car);
+                // *** CALL SAVECHANGESASYNC HERE TO POPULATE car.ListingId ***
                 await _context.SaveChangesAsync();
 
-                // 2. Create CarSpecification
+                // Now car.ListingId will have the database-generated ID,
+                // which can be used for related entities.
+
+                // 4. Tạo CarSpecification
                 var spec = new CarSpecification
                 {
-                    ListingId = car.ListingId,
+                    ListingId = car.ListingId, // Now ListingId is known
                     ExteriorColor = dto.ColorId.ToString(),
                     InteriorColor = dto.InteriorColor,
                     Transmission = dto.Transmission,
@@ -579,42 +636,43 @@ namespace AutoSaleDN.Controllers
                 };
                 _context.CarSpecifications.Add(spec);
 
-                // 3. Create CarPricingDetail
+                // 5. Tạo CarPricingDetail
                 var pricing = new CarPricingDetail
                 {
-                    ListingId = car.ListingId,
+                    ListingId = car.ListingId, // Now ListingId is known
                     RegistrationFee = Math.Round(dto.RegistrationFee, 2),
                     TaxRate = Math.Round(dto.TaxRate, 2)
                 };
                 _context.CarPricingDetails.Add(pricing);
 
-                // 4. Add Car Images
-                if (dto.ImageUrls != null)
+                // 6. Thêm Car Images
+                if (dto.ImageUrls != null && dto.ImageUrls.Any())
                 {
                     foreach (var url in dto.ImageUrls)
                     {
                         _context.CarImages.Add(new CarImage
                         {
-                            ListingId = car.ListingId,
+                            ListingId = car.ListingId, // Now ListingId is known
                             Url = url
                         });
                     }
                 }
 
-                // 5. Add Features
-                if (dto.FeatureIds != null)
+                // 7. Thêm Features
+                if (dto.FeatureIds != null && dto.FeatureIds.Any())
                 {
                     foreach (var featureId in dto.FeatureIds)
                     {
                         _context.CarListingFeatures.Add(new CarListingFeature
                         {
-                            ListingId = car.ListingId,
+                            ListingId = car.ListingId, // Now ListingId is known
                             FeatureId = featureId
                         });
                     }
                 }
 
-                if (dto.VideoUrls != null)
+                // 8. Thêm Car Videos
+                if (dto.VideoUrls != null && dto.VideoUrls.Any())
                 {
                     foreach (var url in dto.VideoUrls)
                     {
@@ -627,15 +685,52 @@ namespace AutoSaleDN.Controllers
                     }
                 }
 
+                // 9. Tạo StoreListing
+                var storeListing = new StoreListing
+                {
+                    ListingId = car.ListingId,
+                    StoreLocationId = dto.StoreLocationId,
+                    InitialQuantity = 1,
+                    IsCurrent = true,
+                    AddedDate = DateTime.Now,
+                    RemovedDate = null
+                };
+                _context.StoreListings.Add(storeListing);
+
+                // *** SAVE CHANGES AGAIN TO GET storeListing.StoreListingId ***
+                await _context.SaveChangesAsync();
+
+                // 10. Tạo CarInventory (AFTER StoreListing is saved and has ID)
+                if (!car.Price.HasValue)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { success = false, message = $"Price for ListingId is not set. Cannot record inventory transaction for car {car.Vin}." });
+                }
+
+                var inventoryLog = new CarInventory
+                {
+                    StoreListingId = storeListing.StoreListingId, // Now StoreListingId is available
+                    TransactionType = (int)InventoryTransactionType.StockImport,
+                    Quantity = 1,
+                    UnitPrice = car.Price.Value,
+                    ReferenceId = $"NEWCAR-{car.ListingId}-{DateTime.UtcNow.Ticks}",
+                    Notes = $"New car ListingId {car.ListingId} (Model: {dto.ModelId}) added to showroom {dto.StoreLocationId}.",
+                    CreatedBy = User.Identity?.Name ?? "Admin",
+                    TransactionDate = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.CarInventories.Add(inventoryLog);
+
+                // *** FINAL SAVE ***
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Ok(new { success = true, message = "Car added successfully." });
+                return Ok(new { success = true, message = "Car added successfully.", listingId = car.ListingId });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return BadRequest(new
+                return StatusCode(500, new
                 {
                     success = false,
                     message = "An error occurred while adding the car.",
@@ -645,7 +740,25 @@ namespace AutoSaleDN.Controllers
             }
         }
 
-
+            [HttpGet("storelocations")]
+        public async Task<IActionResult> GetStoreLocations()
+        {
+            try
+            {
+                var storeLocations = await _context.StoreLocations.ToListAsync();
+                return Ok(new { success = true, data = storeLocations });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while retrieving store locations.",
+                    error = ex.Message,
+                    inner = ex.InnerException?.Message
+                });
+            }
+        }
         [HttpPut("cars/{id}")]
         public async Task<ActionResult> UpdateCar(int id, [FromBody] CarListing model)
         {
@@ -658,7 +771,7 @@ namespace AutoSaleDN.Controllers
             car.Mileage = model.Mileage;
             car.Price = model.Price;
             car.Condition = model.Condition;
-            car.RentSell = model.RentSell;
+            car.Status = model.Status;
             car.DateUpdated = DateTime.UtcNow;
             car.Certified = model.Certified;
             car.Vin = model.Vin;
@@ -679,82 +792,19 @@ namespace AutoSaleDN.Controllers
             return Ok(new { message = "Car deleted successfully" });
         }
 
-        [HttpGet("transactions/{id}")]
-        public async Task<ActionResult<object>> GetTransactionDetail(int id)
-        {
-            var transaction = await (
-                from sale in _context.CarSales
-                join listing in _context.CarListings on sale.ListingId equals listing.ListingId
-                join model in _context.CarModels on listing.ModelId equals model.ModelId
-                join manu in _context.CarManufacturers on model.ManufacturerId equals manu.ManufacturerId
-                join status in _context.SaleStatus on sale.SaleStatusId equals status.SaleStatusId
-                join customer in _context.Users on listing.UserId equals customer.UserId
-                from spec in _context.CarSpecifications.Where(x => x.ListingId == listing.ListingId).DefaultIfEmpty()
-                where sale.SaleId == id
-                select new
-                {
-                    sale.SaleId,
-                    sale.SaleDate,
-                    sale.FinalPrice,
-                    SaleStatus = status.StatusName,
-                    CreatedAt = sale.CreatedAt,
-                    UpdatedAt = sale.UpdatedAt,
-                    Customer = new
-                    {
-                        customer.UserId,
-                        customer.FullName,
-                        customer.Email,
-                        customer.Mobile,
-                        customer.Role
-                    },
-                    Car = new
-                    {
-                        listing.ListingId,
-                        Manufacturer = manu.Name,
-                        Model = model.Name,
-                        listing.Year,
-                        listing.Mileage,
-                        listing.Price,
-                        listing.Location,
-                        listing.Condition,
-                        listing.RentSell,
-                        Vin = listing.Vin,
-                        Description = listing.Description,
-                        Certified = listing.Certified,
-                        Color = spec.ExteriorColor,
-                        Transmission = spec.Transmission,
-                        Images = _context.CarImages
-                            .Where(img => img.ListingId == listing.ListingId)
-                            .Select(img => img.Url)
-                            .ToList()
-                    }
-                }
-            ).FirstOrDefaultAsync();
-
-            if (transaction == null)
-                return NotFound();
-
-            return Ok(transaction);
-        }
-
-
         [HttpGet("cars/add-form-data")]
         public async Task<IActionResult> GetAddCarFormData()
         {
-            var models = await _context.CarModels.Include(x => x.Manufacturer).ToListAsync();
+            var models = await _context.CarModels.Include(x => x.CarManufacturer).ToListAsync();
             var colors = await _context.CarColors.ToListAsync();
             var features = await _context.CarFeatures.ToListAsync();
             return Ok(new
             {
-
-                models = models.Select(m => new {
-
                 models = models.Select(m => new
                 {
-
                     m.ModelId,
                     m.Name,
-                    ManufacturerName = m.Manufacturer.Name
+                    ManufacturerName = m.CarManufacturer.Name
                 }),
                 colors,
                 features
@@ -763,7 +813,84 @@ namespace AutoSaleDN.Controllers
 
         // Showroom Allocations (CarInventory)
 
+        [HttpGet("cars/{id}/allocations")]
+        public async Task<ActionResult<IEnumerable<CarInventoryDto>>> GetCarAllocations(int id)
+        {
+            // Get allocations by querying StoreListings for a given car (ListingId)
+            var allocations = await _context.StoreListings
+                .Where(sl => sl.ListingId == id)
+                .Include(sl => sl.StoreLocation)
+                .Select(sl => new CarInventoryDto
+                {
+                    InventoryId = sl.StoreListingId,
+                    ListingId = sl.ListingId,
+                    ShowroomId = sl.StoreLocationId,
+                    ShowroomName = sl.StoreLocation.Name,
+                    Quantity = sl.CurrentQuantity
+                })
+                .ToListAsync();
 
+            return Ok(allocations);
+        }
+
+
+        [HttpPost("allocations")]
+        public async Task<IActionResult> AddOrUpdateAllocation([FromBody] CarInventoryDto allocationDto)
+        {
+            if (allocationDto.ListingId <= 0 || allocationDto.ShowroomId <= 0 || allocationDto.Quantity < 0)
+            {
+                return BadRequest(new { message = "Invalid allocation data provided." });
+            }
+            var storelisting = new StoreListing
+            {
+                StoreLocationId = allocationDto.ShowroomId,
+                ListingId = allocationDto.ListingId,
+                InitialQuantity = allocationDto.Quantity,
+                AddedDate = DateTime.UtcNow,
+                Status = "IN_STOCK"
+            };
+            _context.StoreListings.Add(storelisting);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Allocation saved successfully." });
+        }
+
+        [HttpDelete("allocations/{storeListingId}")]
+        public async Task<IActionResult> DeleteAllocation(int storeListingId)
+        {
+            var storeListing = await _context.StoreListings.FindAsync(storeListingId);
+            if (storeListing == null)
+            {
+                return NotFound(new { message = "Showroom allocation not found." });
+            }
+
+            _context.StoreListings.Remove(storeListing);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Allocation deleted successfully." });
+        }
+
+        public class CarDto
+        {
+            public int ListingId { get; set; }
+            public string ModelName { get; set; }
+            public string Manufacturer { get; set; }
+            public int Year { get; set; }
+            public double Price { get; set; }
+            public string Status { get; set; }
+            public string ImageUrl { get; set; }
+            public List<CarInventoryDto> Showrooms { get; set; }
+        }
+
+        public class CarInventoryDto
+        {
+            public int? InventoryId { get; set; }
+            public int ListingId { get; set; }
+            public int ShowroomId { get; set; }
+            public string? ShowroomName { get; set; }
+            public int Quantity { get; set; }
+        }
 
         public class AddCarDto
         {
@@ -773,7 +900,6 @@ namespace AutoSaleDN.Controllers
             public int Mileage { get; set; }
             public decimal Price { get; set; }
             public string Condition { get; set; }
-            public string RentSell { get; set; }
             public string Description { get; set; }
             public bool Certified { get; set; }
             public string Vin { get; set; }
@@ -792,9 +918,10 @@ namespace AutoSaleDN.Controllers
             public decimal ImportPrice { get; set; }
             public List<string> ImageUrls { get; set; }
 
-
             public List<string> VideoUrls { get; set; }
             public List<int> FeatureIds { get; set; }
+
+            public int StoreLocationId { get; set; }
         }
 
         
@@ -944,13 +1071,13 @@ namespace AutoSaleDN.Controllers
             {
                 var topCars = await _context.CarListings
                     .Include(cl => cl.Model)
-                    .ThenInclude(m => m.Manufacturer)
+                    .ThenInclude(m => m.CarManufacturer)
                     .Include(cl => cl.CarImages)
                     .GroupBy(cl => new
                     {
                         cl.ModelId,
                         ModelName = cl.Model.Name,
-                        ManufacturerName = cl.Model.Manufacturer.Name
+                        ManufacturerName = cl.Model.CarManufacturer.Name
                     })
                     .Select(g => new TopSellingCarDto
                     {
@@ -1005,7 +1132,7 @@ namespace AutoSaleDN.Controllers
                     .Include(sl => sl.StoreLocation)
                     .Include(sl => sl.CarListing)
                         .ThenInclude(cl => cl.Model)
-                            .ThenInclude(m => m.Manufacturer)
+                            .ThenInclude(m => m.CarManufacturer)
                     .Include(sl => sl.Inventories)
                     .Where(sl => sl.Status == "IN_STOCK" && sl.RemovedDate == null)
                     .Select(sl => new
@@ -1014,7 +1141,7 @@ namespace AutoSaleDN.Controllers
                         CurrentQuantity = sl.CurrentQuantity,
                         AvailableQuantity = sl.AvailableQuantity,
                         CarListing = sl.CarListing,
-                        Manufacturer = sl.CarListing.Model.Manufacturer,
+                        Manufacturer = sl.CarListing.Model.CarManufacturer,
                         Model = sl.CarListing.Model,
                         Inventories = sl.Inventories
                     })
@@ -1232,12 +1359,12 @@ namespace AutoSaleDN.Controllers
                             s.StoreListing.CarListing.ListingId,
                             s.StoreListing.CarListing.ModelId,
                             Model = s.StoreListing.CarListing.Model.Name,
-                            Manufacturer = s.StoreListing.CarListing.Model.Manufacturer.Name,
+                            Manufacturer = s.StoreListing.CarListing.Model.CarManufacturer.Name,
                             s.StoreListing.CarListing.Year,
                             s.StoreListing.CarListing.Mileage,
                             s.StoreListing.CarListing.Price,
                             s.StoreListing.CarListing.Condition,
-                            s.StoreListing.CarListing.RentSell,
+                            s.StoreListing.CarListing.Status,
                             s.StoreListing.CarListing.Vin,
                             Transmission = s.StoreListing.CarListing.Specifications.Any()
                                 ? s.StoreListing.CarListing.Specifications.FirstOrDefault().Transmission
@@ -1285,7 +1412,7 @@ namespace AutoSaleDN.Controllers
                         {
                             i.StoreListing.CarListing.ListingId,
                             ModelName = i.StoreListing.CarListing.Model.Name,
-                            ManufacturerName = i.StoreListing.CarListing.Model.Manufacturer.Name,
+                            ManufacturerName = i.StoreListing.CarListing.Model.CarManufacturer.Name,
                             i.StoreListing.CarListing.Year,
                             i.StoreListing.CarListing.Mileage,
                             i.StoreListing.CarListing.Price
@@ -1307,14 +1434,14 @@ namespace AutoSaleDN.Controllers
             {
                 var brands = await _context.StoreListings
                     .Where(sl => sl.StoreLocationId == id)
-                    .GroupBy(sl => sl.CarListing.Model.Manufacturer.Name)
+                    .GroupBy(sl => sl.CarListing.Model.CarManufacturer.Name)
                     .Select(g => new
                     {
                         Name = g.Key,
                         Count = g.Sum(sl => sl.CurrentQuantity),
                         Revenue = _context.CarSales
                             .Where(s => s.StoreListing.StoreLocationId == id 
-                                && s.StoreListing.CarListing.Model.Manufacturer.Name == g.Key)
+                                && s.StoreListing.CarListing.Model.CarManufacturer.Name == g.Key)
                             .Sum(s => s.FinalPrice)
                     })
                     .OrderByDescending(b => b.Count)
@@ -1340,7 +1467,7 @@ namespace AutoSaleDN.Controllers
                     {
                         ListingId = sl.CarListing.ListingId,
                         ModelName = sl.CarListing.Model.Name, // Model name
-                        ManufacturerName = sl.CarListing.Model.Manufacturer.Name, // Brand name
+                        ManufacturerName = sl.CarListing.Model.CarManufacturer.Name, // Brand name
                         Price = sl.CarListing.Price, // Price from CarListing
                         CurrentQuantity = sl.CurrentQuantity // Current quantity in showroom
                     })
@@ -1463,14 +1590,14 @@ namespace AutoSaleDN.Controllers
         {
             return _context.StoreListings
                 .Where(sl => sl.StoreLocationId == showroomId)
-                .GroupBy(sl => sl.CarListing.Model.Manufacturer.Name)
+                .GroupBy(sl => sl.CarListing.Model.CarManufacturer.Name)
                 .Select(g => new BrandPerformanceDto
                 {
                     Name = g.Key,
                     Count = g.Sum(sl => sl.CurrentQuantity),
                     Revenue = _context.CarSales
                         .Where(s => s.StoreListing.StoreLocationId == showroomId 
-                            && s.StoreListing.CarListing.Model.Manufacturer.Name == g.Key)
+                            && s.StoreListing.CarListing.Model.CarManufacturer.Name == g.Key)
                         .Sum(s => s.FinalPrice)
                 })
                 .OrderByDescending(b => b.Count)
@@ -1525,7 +1652,7 @@ namespace AutoSaleDN.Controllers
                 .GroupBy(sl => new
                 {
                     ModelName = sl.CarListing.Model.Name,
-                    ManufacturerName = sl.CarListing.Model.Manufacturer.Name
+                    ManufacturerName = sl.CarListing.Model.CarManufacturer.Name
                 })
                 .Select(g => new ModelPerformanceDto
                 {
@@ -1646,7 +1773,7 @@ namespace AutoSaleDN.Controllers
                             Price = listing.Price,
                             Location = storelisting.StoreLocation,
                             Condition = listing.Condition,
-                            RentSell = listing.RentSell,
+                            Status = listing.Status,
                             Vin = listing.Vin,
                             Description = listing.Description,
                             Certified = listing.Certified,

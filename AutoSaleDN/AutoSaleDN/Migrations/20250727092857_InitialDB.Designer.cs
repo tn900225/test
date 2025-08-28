@@ -4,6 +4,7 @@ using AutoSaleDN.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoSaleDN.Migrations
 {
     [DbContext(typeof(AutoSaleDbContext))]
-    partial class AutoSaleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250727092857_InitialDB")]
+    partial class InitialDB
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -279,7 +282,7 @@ namespace AutoSaleDN.Migrations
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Status")
+                    b.Property<string>("RentSell")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("UserId")
@@ -937,11 +940,6 @@ namespace AutoSaleDN.Migrations
                     b.Property<int>("InitialQuantity")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsCurrent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<decimal?>("LastPurchasePrice")
                         .HasColumnType("decimal(18,2)");
 
@@ -962,17 +960,14 @@ namespace AutoSaleDN.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StoreLocationId")
                         .HasColumnType("int");
 
                     b.HasKey("StoreListingId");
 
-                    b.HasIndex("ListingId")
-                        .IsUnique()
-                        .HasFilter("[IsCurrent] = 1");
+                    b.HasIndex("ListingId");
 
                     b.HasIndex("StoreLocationId");
 
